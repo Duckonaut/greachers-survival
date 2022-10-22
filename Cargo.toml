@@ -1,0 +1,11 @@
+[package]
+name = "greachers-survival"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = "0.8.1"
+rand = { version = "0.8.5", features = ["small_rng"] }
+paste = "1.0"
