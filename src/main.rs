@@ -6,9 +6,11 @@ use bevy::{
     },
     window::WindowMode,
 };
+use fps_counter::FpsCounterPlugin;
 use greachers::game_plugin::GreacherGamePlugin;
 
 mod color;
+mod fps_counter;
 mod greachers;
 mod util;
 
@@ -23,7 +25,8 @@ fn main() {
             cursor_visible: true,
             cursor_locked: false,
             mode: WindowMode::Windowed,
-            ..default()
+            present_mode: bevy::window::PresentMode::AutoNoVsync,
+            ..Default::default()
         })
         .insert_resource(ImageSettings {
             default_sampler: SamplerDescriptor {
@@ -36,6 +39,7 @@ fn main() {
             },
         })
         .add_plugins(DefaultPlugins)
+        .add_plugin(FpsCounterPlugin)
         .add_plugin(GreacherGamePlugin)
         .run();
 }

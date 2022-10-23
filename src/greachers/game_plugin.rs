@@ -1,16 +1,27 @@
 use bevy::{
     prelude::*,
-    render::render_resource::{
-        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    render::{
+        camera::RenderTarget,
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
     },
 };
-use rand::random;
 
-use crate::{greachers::gen::GreacherPart, util::rand_range_f32};
+use crate::util::rand_range_f32;
 
-use super::{gen::{generate_greacher_head_texture, GreacherInfo}, behavior::{animate_greacher_body, GreacherBodyAnimation}};
+use super::{
+    behavior::{animate_greacher_body, go_towards_mouse, handle_greacher_velocity},
+    components::{Greacher, GreacherBodyAnimation},
+};
 
 struct GreetTimer(Timer);
+
+#[derive(Component)]
+struct MainCamera;
+
+#[derive(Deref, DerefMut)]
+pub struct WorldMouse(Vec2);
 
 pub struct GreacherHeadImageTemplate(pub Image);
 
@@ -35,8 +46,12 @@ impl Plugin for GreacherGamePlugin {
                 },
                 ..Default::default()
             }))
+            .insert_resource(WorldMouse(Vec2::ZERO))
             .add_startup_system(setup)
-            .add_system(generate_greacher_head)
+            .add_system_to_stage(CoreStage::PreUpdate, world_cursor_pos)
+            //.add_system(periodically_regenerate_greachers)
+            .add_system(go_towards_mouse)
+            .add_system(handle_greacher_velocity)
             .add_system(animate_greacher_body);
     }
 }
@@ -48,34 +63,35 @@ fn setup(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     head_template: Res<GreacherHeadImageTemplate>,
 ) {
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands
+        .spawn_bundle(Camera2dBundle::default())
+        .insert(MainCamera);
 
-    for _ in 0..10 {
+    for _ in 0..10_000 {
         create_new_greacher(
             &mut commands,
             &asset_server,
             &mut images,
             &mut texture_atlases,
             &head_template,
-            Vec3::new(rand_range_f32(-50., 50.), rand_range_f32(-50., 50.), 0.),
+            Vec2::new(rand_range_f32(-100., 100.), rand_range_f32(-100., 100.)),
         );
     }
 }
 
-fn generate_greacher_head(
+fn periodically_regenerate_greachers(
     time: Res<Time>,
     mut timer: ResMut<GreetTimer>,
-    mut query: Query<(&mut GreacherInfo, &mut Handle<Image>)>,
+    mut query: Query<(&mut Greacher, &mut Handle<Image>)>,
     mut images: ResMut<Assets<Image>>,
 ) {
     if timer.0.tick(time.delta()).just_finished() {
         for (mut greacher_info, img_handle) in query.iter_mut() {
-            println!("Generated GREACHER");
             let img = images.get_mut(&img_handle).expect("WHAT HTEH HELL");
 
-            generate_greacher_head_texture(random(), img);
+            greacher_info.regenerate(img);
 
-            greacher_info.mark_as_generated(GreacherPart::Head);
+            println!("Created {}", greacher_info.name);
         }
     }
 }
@@ -86,21 +102,27 @@ fn create_new_greacher(
     images: &mut ResMut<Assets<Image>>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     head_template: &GreacherHeadImageTemplate,
-    position: Vec3,
+    position: Vec2,
 ) {
     let mut tex = head_template.0.clone();
 
-    generate_greacher_head_texture(0, &mut tex);
+    let greacher = Greacher::new(&mut tex);
+
+    let greacher_body_type = greacher.body_type;
 
     let handle = images.add(tex);
 
     let parent = commands
         .spawn_bundle(SpriteBundle {
             texture: handle,
-            transform: Transform::from_translation(position),
+            transform: Transform::from_translation(Vec3::new(
+                position.x,
+                position.y,
+                (greacher.seed % 1_000_000) as f32 / 1_000_000.,
+            )),
             ..Default::default()
         })
-        .insert(GreacherInfo::new())
+        .insert(greacher)
         .id();
 
     let texture_handle = asset_server.load("indexed/legs.png");
@@ -113,8 +135,45 @@ fn create_new_greacher(
             transform: Transform::from_xyz(0., -7., 1.),
             ..Default::default()
         })
-        .insert(GreacherBodyAnimation(Timer::from_seconds(0.125, true)))
+        .insert(GreacherBodyAnimation::new(&greacher_body_type))
         .id();
 
     commands.entity(parent).push_children(&[child]);
+}
+
+fn world_cursor_pos(
+    wnds: Res<Windows>,
+    mut world_mouse: ResMut<WorldMouse>,
+    camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+) {
+    // get the camera info and transform
+    // assuming there is exactly one main camera entity, so query::single() is OK
+    let (camera, camera_transform) = camera.single();
+
+    // get the window that the camera is displaying to (or the primary window)
+    let wnd = if let RenderTarget::Window(id) = camera.target {
+        wnds.get(id).unwrap()
+    } else {
+        wnds.get_primary().unwrap()
+    };
+
+    // check if the cursor is inside the window and get its position
+    if let Some(screen_pos) = wnd.cursor_position() {
+        // get the size of the window
+        let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+        // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
+        let ndc = (screen_pos / window_size) * 2.0 - Vec2::ONE;
+
+        // matrix for undoing the projection and camera transform
+        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
+
+        // use it to convert ndc to world-space coordinates
+        let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
+
+        // reduce it to a 2D value
+        let world_pos: Vec2 = world_pos.truncate();
+
+        world_mouse.0 = world_pos;
+    }
 }

@@ -1,52 +1,22 @@
-use std::collections::HashMap;
-
-use crate::color::Color;
+use crate::{color::Color, util::SliceExt};
 use bevy::prelude::*;
-use rand::{distributions::Uniform, prelude::*};
+use lazy_static::lazy_static;
+use rand::prelude::*;
 
 pub const GREACHER_HEAD_SIZE: usize = 8;
 pub const GREACHER_CANVAS_SIZE: usize = GREACHER_HEAD_SIZE + 2;
 
-#[derive(Component)]
-pub struct GreacherInfo {
-    seed: i32,
-    generated: HashMap<GreacherPart, bool>,
-}
-
-#[derive(PartialEq, Eq, Hash)]
-pub enum GreacherPart {
-    Head,
-    Body,
-    Stats,
-    Name,
-}
-
-impl GreacherInfo {
-    pub fn new() -> GreacherInfo {
-        let generated_flags = HashMap::from([
-            (GreacherPart::Head, false),
-            (GreacherPart::Body, false),
-            (GreacherPart::Stats, false),
-            (GreacherPart::Name, false),
-        ]);
-
-        GreacherInfo {
-            seed: random(),
-            generated: generated_flags,
-        }
-    }
-
-    pub fn mark_as_generated(&mut self, category: GreacherPart) {
-        self.generated.insert(category, true);
-    }
-
-    pub fn is_part_generated(&self, category: GreacherPart) -> bool {
-        return self
-            .generated
-            .get(&category)
-            .expect("WHAT THE HELL DID YOU DO")
-            .to_owned();
-    }
+lazy_static! {
+    static ref NAME_STARTS: Vec<&'static str> = vec![
+        "qu", "wr", "br", "tl", "p", "s", "d", "fw", "gh", "j", "kl", "l", "z", "cl", "v", "b",
+        "n", "m",
+    ];
+    static ref NAME_JOINS: Vec<&'static str> = vec!["a", "e", "i", "o", "u"];
+    static ref NAME_ENDS: Vec<&'static str> = vec!["g", "mb", "kl", "pw", "nk", "mk"];
+    static ref NAME_PREFIXES: Vec<&'static str> =
+        vec!["THE ", "big ", "little ", "tiny ", "baby ", "loser "];
+    static ref NAME_POSTFIXES: Vec<&'static str> =
+        vec!["ford", "ley", " the great", "pop", "wer", "ula", "io"];
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,10 +42,59 @@ impl GreacherColorPalette {
         let mut rng = SmallRng::seed_from_u64(seed);
 
         GreacherColorPalette {
-            dark: Color::new(rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, 255),
-            darkish: Color::new(rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, 255),
-            basic: Color::new(rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, 255),
-            highlight: Color::new(rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, rng.gen_range(0..=255) / 16 * 16, 255),
+            dark: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+            darkish: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+            basic: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+            highlight: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+        }
+    }
+
+    pub fn from_rng(rng: &mut SmallRng) -> Self {
+        GreacherColorPalette {
+            dark: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+            darkish: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+            basic: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
+            highlight: Color::new(
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                rng.gen_range(0..=255) / 16 * 16,
+                255,
+            ),
         }
     }
 }
@@ -91,15 +110,58 @@ impl Default for GreacherColorPalette {
     }
 }
 
-pub fn generate_greacher_head_texture(seed: u64, image: &mut Image) {
+pub fn generate_greacher_name(rng: &mut SmallRng) -> String {
+    let mut name = match rng.gen_range(0..4) {
+        0 => format!(
+            "{}{}{}",
+            NAME_STARTS.random(rng),
+            NAME_JOINS.random(rng),
+            NAME_ENDS.random(rng)
+        ),
+        1 => format!(
+            "{}{}{}{}",
+            NAME_STARTS.random(rng),
+            NAME_JOINS.random(rng),
+            NAME_ENDS.random(rng),
+            NAME_JOINS.random(rng)
+        ),
+        2 => format!(
+            "{}{}{}{}",
+            NAME_STARTS.random(rng),
+            NAME_JOINS.random(rng),
+            NAME_STARTS.random(rng),
+            NAME_JOINS.random(rng)
+        ),
+        3 => format!(
+            "{}{}{}{}{}",
+            NAME_STARTS.random(rng),
+            NAME_JOINS.random(rng),
+            NAME_STARTS.random(rng),
+            NAME_JOINS.random(rng),
+            NAME_ENDS.random(rng)
+        ),
+        _ => panic!(),
+    };
+
+    if rng.gen_range(0..10) == 0 {
+        name = format!("{}{}", NAME_PREFIXES.random(rng), name);
+    }
+
+    if rng.gen_range(0..10) == 0 {
+        name = format!("{}{}", name, NAME_POSTFIXES.random(rng));
+    }
+
+    name.to_uppercase()
+}
+
+pub fn generate_greacher_head_texture(rng: &mut SmallRng, image: &mut Image) {
     let mut template = vec![ColorMapping::Transparent; GREACHER_CANVAS_SIZE * GREACHER_CANVAS_SIZE];
-    let mut rng = SmallRng::seed_from_u64(seed);
 
-    generate_head_shape(&mut template, &mut rng);
-    generate_head_pattern(&mut template, &mut rng);
-    generate_eyes(&mut template, &mut rng);
+    generate_head_shape(&mut template, rng);
+    generate_head_pattern(&mut template, rng);
+    generate_eyes(&mut template, rng);
 
-    image.data = create_color_data(&template, &GreacherColorPalette::from_seed(seed));
+    image.data = create_color_data(&template, &GreacherColorPalette::from_rng(rng));
 }
 
 fn generate_head_shape(data: &mut [ColorMapping], rng: &mut SmallRng) -> (usize, usize) {
