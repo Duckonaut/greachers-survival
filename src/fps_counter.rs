@@ -1,11 +1,13 @@
-use bevy::{prelude::*, diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin}};
+use bevy::{
+    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    prelude::*,
+};
 
 pub struct FpsCounterPlugin;
 
 impl Plugin for FpsCounterPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        app.add_plugin(FrameTimeDiagnosticsPlugin::default())
             .add_startup_system(spawn_fps_counter)
             .add_system(fps_counter);
     }
@@ -23,13 +25,13 @@ fn spawn_fps_counter(mut commands: Commands, asset_server: Res<AssetServer>) {
                     "FPS: ",
                     TextStyle {
                         font: asset_server.load("fonts/04b03.ttf"),
-                        font_size: 24.0,
+                        font_size: 16.0,
                         color: Color::WHITE,
                     },
                 ),
                 TextSection::from_style(TextStyle {
                     font: asset_server.load("fonts/04b03.ttf"),
-                    font_size: 24.0,
+                    font_size: 16.0,
                     color: Color::GOLD,
                 }),
             ])

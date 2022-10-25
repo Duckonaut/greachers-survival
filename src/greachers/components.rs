@@ -9,7 +9,6 @@ pub struct Greacher {
     pub seed: u64,
     pub name: String,
     pub generated: GreacherParts,
-    pub velocity: Vec2,
     pub body_type: GreacherBodyType,
 }
 
@@ -28,6 +27,9 @@ pub enum GreacherParts {
 }
 
 impl Greacher {
+    pub const SIZE: f32 = 12.0;
+    pub const STILL_EPSILON: f32 = 1.;
+
     pub fn new(head_texture: &mut Image) -> Greacher {
         let generated_flags = GreacherParts::none();
 
@@ -35,7 +37,6 @@ impl Greacher {
             seed: random(),
             name: String::new(),
             generated: generated_flags,
-            velocity: Vec2::ZERO,
             body_type: GreacherBodyType::Legs,
         };
 
@@ -95,8 +96,38 @@ impl GreacherBodyAnimation {
             frame_counter: 0,
             state: match body_type {
                 GreacherBodyType::Legs => GreacherAnimationState::Legs(LegState::Idle),
-                GreacherBodyType::Wings => GreacherAnimationState::Wings, 
+                GreacherBodyType::Wings => GreacherAnimationState::Wings,
             },
         }
     }
+}
+
+#[derive(Component, Default)]
+pub struct MovementHistory {
+    last_position: Vec2,
+    pub actually_moved: Vec2,
+}
+
+impl MovementHistory {
+    pub fn set_last_position(mut query: Query<(&Transform, &mut MovementHistory)>) {
+        for (transform, mut history) in &mut query {
+            history.last_position = transform.translation.truncate();
+        }
+    }
+
+    pub fn set_actually_moved(mut query: Query<(&Transform, &mut MovementHistory)>) {
+        for (transform, mut history) in &mut query {
+            history.actually_moved = transform.translation.truncate() - history.last_position;
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct RadiusCollider {
+    pub radius: f32,
+}
+
+#[derive(Component, Deref, DerefMut, Default)]
+pub struct Velocity {
+    pub inner: Vec2,
 }

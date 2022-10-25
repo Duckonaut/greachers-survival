@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     render::{
-        camera::RenderTarget,
+        camera::{DepthCalculation, RenderTarget},
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
@@ -11,8 +11,10 @@ use bevy::{
 use crate::util::rand_range_f32;
 
 use super::{
-    behavior::{animate_greacher_body, go_towards_mouse, handle_greacher_velocity},
-    components::{Greacher, GreacherBodyAnimation},
+    behavior::{
+        animate_greacher_body, apply_velocity, go_towards_mouse, handle_greacher_collisions,
+    },
+    components::{Greacher, GreacherBodyAnimation, MovementHistory, Velocity},
 };
 
 struct GreetTimer(Timer);
@@ -26,6 +28,8 @@ pub struct WorldMouse(Vec2);
 pub struct GreacherHeadImageTemplate(pub Image);
 
 pub struct GreacherGamePlugin;
+
+pub const MIN_Y_COORD: f32 = -160.0;
 
 impl Plugin for GreacherGamePlugin {
     fn build(&self, app: &mut App) {
@@ -49,9 +53,12 @@ impl Plugin for GreacherGamePlugin {
             .insert_resource(WorldMouse(Vec2::ZERO))
             .add_startup_system(setup)
             .add_system_to_stage(CoreStage::PreUpdate, world_cursor_pos)
+            .add_system_to_stage(CoreStage::PreUpdate, MovementHistory::set_last_position)
+            .add_system_to_stage(CoreStage::PostUpdate, MovementHistory::set_actually_moved)
             //.add_system(periodically_regenerate_greachers)
             .add_system(go_towards_mouse)
-            .add_system(handle_greacher_velocity)
+            .add_system(apply_velocity)
+            .add_system(handle_greacher_collisions)
             .add_system(animate_greacher_body);
     }
 }
@@ -64,10 +71,12 @@ fn setup(
     head_template: Res<GreacherHeadImageTemplate>,
 ) {
     commands
-        .spawn_bundle(Camera2dBundle::default())
+        .spawn_bundle(Camera2dBundle {
+            ..Default::default()
+        })
         .insert(MainCamera);
 
-    for _ in 0..10_000 {
+    for _ in 0..100 {
         create_new_greacher(
             &mut commands,
             &asset_server,
@@ -123,6 +132,8 @@ fn create_new_greacher(
             ..Default::default()
         })
         .insert(greacher)
+        .insert(MovementHistory::default())
+        .insert(Velocity::default())
         .id();
 
     let texture_handle = asset_server.load("indexed/legs.png");
