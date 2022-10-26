@@ -2,10 +2,11 @@ use std::time::Duration;
 
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 
+use crate::basics::components::{MovementHistory, Velocity};
+
 use super::{
     components::{
         Greacher, GreacherAnimationState, GreacherBodyAnimation, GreacherBodyType, LegState,
-        MovementHistory, Velocity,
     },
     game_plugin::{WorldMouse, MIN_Y_COORD},
 };

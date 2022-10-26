@@ -1,3 +1,4 @@
+use basics::plugins::CollisionPlugin;
 use bevy::{
     prelude::*,
     render::{
@@ -12,7 +13,9 @@ use greachers::game_plugin::GreacherGamePlugin;
 mod color;
 mod fps_counter;
 mod greachers;
+mod basics;
 mod util;
+mod camera;
 
 fn main() {
     App::new()
@@ -40,6 +43,7 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(FpsCounterPlugin)
+        .add_plugin(CollisionPlugin)
         .add_plugin(GreacherGamePlugin)
         .run();
 }

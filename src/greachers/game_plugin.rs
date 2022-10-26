@@ -1,26 +1,23 @@
 use bevy::{
     prelude::*,
     render::{
-        camera::{DepthCalculation, RenderTarget},
+        camera::RenderTarget,
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
     },
 };
 
-use crate::util::rand_range_f32;
+use crate::{util::rand_range_f32, basics::components::{MovementHistory, Velocity, SimpleCollider, ColliderShape}, camera::GameCamera};
 
 use super::{
     behavior::{
         animate_greacher_body, apply_velocity, go_towards_mouse, handle_greacher_collisions,
     },
-    components::{Greacher, GreacherBodyAnimation, MovementHistory, Velocity},
+    components::{Greacher, GreacherBodyAnimation},
 };
 
 struct GreetTimer(Timer);
-
-#[derive(Component)]
-struct MainCamera;
 
 #[derive(Deref, DerefMut)]
 pub struct WorldMouse(Vec2);
@@ -58,7 +55,7 @@ impl Plugin for GreacherGamePlugin {
             //.add_system(periodically_regenerate_greachers)
             .add_system(go_towards_mouse)
             .add_system(apply_velocity)
-            .add_system(handle_greacher_collisions)
+            //.add_system(handle_greacher_collisions)
             .add_system(animate_greacher_body);
     }
 }
@@ -74,9 +71,9 @@ fn setup(
         .spawn_bundle(Camera2dBundle {
             ..Default::default()
         })
-        .insert(MainCamera);
+        .insert(GameCamera);
 
-    for _ in 0..100 {
+    for _ in 0..1 {
         create_new_greacher(
             &mut commands,
             &asset_server,
@@ -85,23 +82,6 @@ fn setup(
             &head_template,
             Vec2::new(rand_range_f32(-100., 100.), rand_range_f32(-100., 100.)),
         );
-    }
-}
-
-fn periodically_regenerate_greachers(
-    time: Res<Time>,
-    mut timer: ResMut<GreetTimer>,
-    mut query: Query<(&mut Greacher, &mut Handle<Image>)>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    if timer.0.tick(time.delta()).just_finished() {
-        for (mut greacher_info, img_handle) in query.iter_mut() {
-            let img = images.get_mut(&img_handle).expect("WHAT HTEH HELL");
-
-            greacher_info.regenerate(img);
-
-            println!("Created {}", greacher_info.name);
-        }
     }
 }
 
@@ -134,6 +114,7 @@ fn create_new_greacher(
         .insert(greacher)
         .insert(MovementHistory::default())
         .insert(Velocity::default())
+        .insert(SimpleCollider::new(ColliderShape::Circle(12.)))
         .id();
 
     let texture_handle = asset_server.load("indexed/legs.png");
@@ -155,7 +136,7 @@ fn create_new_greacher(
 fn world_cursor_pos(
     wnds: Res<Windows>,
     mut world_mouse: ResMut<WorldMouse>,
-    camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
 ) {
     // get the camera info and transform
     // assuming there is exactly one main camera entity, so query::single() is OK
