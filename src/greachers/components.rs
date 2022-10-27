@@ -27,7 +27,7 @@ pub enum GreacherParts {
 }
 
 impl Greacher {
-    pub const SIZE: f32 = 12.0;
+    pub const SIZE: f32 = 6.0;
     pub const STILL_EPSILON: f32 = 1.;
 
     pub fn new(head_texture: &mut Image) -> Greacher {

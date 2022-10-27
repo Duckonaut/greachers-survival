@@ -1,4 +1,3 @@
-use basics::plugins::CollisionPlugin;
 use bevy::{
     prelude::*,
     render::{
@@ -7,15 +6,19 @@ use bevy::{
     },
     window::WindowMode,
 };
+use bevy_rapier2d::{
+    prelude::{NoUserData, RapierPhysicsPlugin},
+    render::RapierDebugRenderPlugin,
+};
 use fps_counter::FpsCounterPlugin;
 use greachers::game_plugin::GreacherGamePlugin;
 
+mod basics;
+mod camera;
 mod color;
 mod fps_counter;
 mod greachers;
-mod basics;
 mod util;
-mod camera;
 
 fn main() {
     App::new()
@@ -43,7 +46,7 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(FpsCounterPlugin)
-        .add_plugin(CollisionPlugin)
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(16.0))
         .add_plugin(GreacherGamePlugin)
         .run();
 }

@@ -8,12 +8,12 @@ use bevy::{
     },
 };
 
-use crate::{util::rand_range_f32, basics::components::{MovementHistory, Velocity, SimpleCollider, ColliderShape}, camera::GameCamera};
+use bevy_rapier2d::prelude::*;
+
+use crate::{basics::components::MovementHistory, camera::GameCamera, util::rand_range_f32};
 
 use super::{
-    behavior::{
-        animate_greacher_body, apply_velocity, go_towards_mouse, handle_greacher_collisions,
-    },
+    behavior::{animate_greacher_body, go_towards_mouse, limit_greacher_velocity, set_z},
     components::{Greacher, GreacherBodyAnimation},
 };
 
@@ -25,8 +25,6 @@ pub struct WorldMouse(Vec2);
 pub struct GreacherHeadImageTemplate(pub Image);
 
 pub struct GreacherGamePlugin;
-
-pub const MIN_Y_COORD: f32 = -160.0;
 
 impl Plugin for GreacherGamePlugin {
     fn build(&self, app: &mut App) {
@@ -54,8 +52,8 @@ impl Plugin for GreacherGamePlugin {
             .add_system_to_stage(CoreStage::PostUpdate, MovementHistory::set_actually_moved)
             //.add_system(periodically_regenerate_greachers)
             .add_system(go_towards_mouse)
-            .add_system(apply_velocity)
-            //.add_system(handle_greacher_collisions)
+            .add_system(set_z)
+            .add_system(limit_greacher_velocity)
             .add_system(animate_greacher_body);
     }
 }
@@ -73,7 +71,7 @@ fn setup(
         })
         .insert(GameCamera);
 
-    for _ in 0..1 {
+    for _ in 0..1000 {
         create_new_greacher(
             &mut commands,
             &asset_server,
@@ -114,7 +112,14 @@ fn create_new_greacher(
         .insert(greacher)
         .insert(MovementHistory::default())
         .insert(Velocity::default())
-        .insert(SimpleCollider::new(ColliderShape::Circle(12.)))
+        .insert(Collider::ball(5.))
+        .insert(RigidBody::Dynamic)
+        .insert(GravityScale(0.))
+        .insert(Damping {
+            linear_damping: 0.9,
+            angular_damping: 1.0,
+        })
+        .insert(LockedAxes::ROTATION_LOCKED)
         .id();
 
     let texture_handle = asset_server.load("indexed/legs.png");
@@ -124,7 +129,7 @@ fn create_new_greacher(
     let child = commands
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_xyz(0., -7., 1.),
+            transform: Transform::from_xyz(0., -7., 0.),
             ..Default::default()
         })
         .insert(GreacherBodyAnimation::new(&greacher_body_type))

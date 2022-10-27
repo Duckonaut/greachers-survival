@@ -18,3 +18,4 @@ rand = { version = "0.8.5", features = ["small_rng"] }
 paste = "1.0"
 bitmask-enum = "2.1.0"
 lazy_static = "1.4.0"
+bevy_rapier2d = "0.17.0"
