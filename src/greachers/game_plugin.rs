@@ -10,7 +10,13 @@ use bevy::{
 
 use bevy_rapier2d::prelude::*;
 
-use crate::{basics::components::MovementHistory, camera::GameCamera, util::rand_range_f32};
+use crate::{
+    basics::components::MovementHistory,
+    camera::{GameCamera, GameWorldRenderLayer},
+    color::GreacherPalettes,
+    states::AppState,
+    util::rand_range_f32,
+};
 
 use super::{
     behavior::{animate_greacher_body, go_towards_mouse, limit_greacher_velocity, set_z},
@@ -46,15 +52,17 @@ impl Plugin for GreacherGamePlugin {
                 ..Default::default()
             }))
             .insert_resource(WorldMouse(Vec2::ZERO))
-            .add_startup_system(setup)
+            .add_system_set(SystemSet::on_enter(AppState::InGame).with_system(setup))
             .add_system_to_stage(CoreStage::PreUpdate, world_cursor_pos)
             .add_system_to_stage(CoreStage::PreUpdate, MovementHistory::set_last_position)
             .add_system_to_stage(CoreStage::PostUpdate, MovementHistory::set_actually_moved)
-            //.add_system(periodically_regenerate_greachers)
-            .add_system(go_towards_mouse)
-            .add_system(set_z)
-            .add_system(limit_greacher_velocity)
-            .add_system(animate_greacher_body);
+            .add_system_set(
+                SystemSet::on_update(AppState::InGame)
+                    .with_system(go_towards_mouse)
+                    .with_system(set_z)
+                    .with_system(limit_greacher_velocity)
+                    .with_system(animate_greacher_body),
+            );
     }
 }
 
@@ -63,22 +71,20 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut images: ResMut<Assets<Image>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    greacher_palettes: Res<GreacherPalettes>,
     head_template: Res<GreacherHeadImageTemplate>,
+    game_world_render_layer: Res<GameWorldRenderLayer>,
 ) {
-    commands
-        .spawn_bundle(Camera2dBundle {
-            ..Default::default()
-        })
-        .insert(GameCamera);
-
     for _ in 0..1000 {
         create_new_greacher(
             &mut commands,
             &asset_server,
             &mut images,
             &mut texture_atlases,
+            &greacher_palettes,
             &head_template,
             Vec2::new(rand_range_f32(-100., 100.), rand_range_f32(-100., 100.)),
+            &game_world_render_layer,
         );
     }
 }
@@ -88,12 +94,14 @@ fn create_new_greacher(
     asset_server: &Res<AssetServer>,
     images: &mut ResMut<Assets<Image>>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    greacher_palettes: &Res<GreacherPalettes>,
     head_template: &GreacherHeadImageTemplate,
     position: Vec2,
+    game_world_render_layer: &Res<GameWorldRenderLayer>,
 ) {
     let mut tex = head_template.0.clone();
 
-    let greacher = Greacher::new(&mut tex);
+    let greacher = Greacher::new(&mut tex, greacher_palettes);
 
     let greacher_body_type = greacher.body_type;
 
@@ -120,6 +128,7 @@ fn create_new_greacher(
             angular_damping: 1.0,
         })
         .insert(LockedAxes::ROTATION_LOCKED)
+        .insert(game_world_render_layer.0)
         .id();
 
     let texture_handle = asset_server.load("indexed/legs.png");
@@ -133,6 +142,7 @@ fn create_new_greacher(
             ..Default::default()
         })
         .insert(GreacherBodyAnimation::new(&greacher_body_type))
+        .insert(game_world_render_layer.0)
         .id();
 
     commands.entity(parent).push_children(&[child]);

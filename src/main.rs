@@ -6,18 +6,19 @@ use bevy::{
     },
     window::WindowMode,
 };
-use bevy_rapier2d::{
-    prelude::{NoUserData, RapierPhysicsPlugin},
-    render::RapierDebugRenderPlugin,
-};
+use bevy_rapier2d::prelude::{NoUserData, RapierPhysicsPlugin};
+use camera::CameraPlugin;
+use color::{IndexerPlugin, GreacherPalettes};
 use fps_counter::FpsCounterPlugin;
 use greachers::game_plugin::GreacherGamePlugin;
+use states::AppState;
 
 mod basics;
 mod camera;
 mod color;
 mod fps_counter;
 mod greachers;
+mod states;
 mod util;
 
 fn main() {
@@ -44,8 +45,11 @@ fn main() {
                 ..Default::default()
             },
         })
+        .insert_resource(GreacherPalettes::default())
         .add_plugins(DefaultPlugins)
+        .add_state(AppState::InGame)
         .add_plugin(FpsCounterPlugin)
+        .add_plugin(CameraPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(16.0))
         .add_plugin(GreacherGamePlugin)
         .run();

@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bitmask_enum::bitmask;
 use rand::{random, rngs::SmallRng, SeedableRng};
 
+use crate::{color::{GreacherColorPalette, GreacherPalettes}, util::SliceExt};
+
 use super::gen::{generate_greacher_head_texture, generate_greacher_name};
 
 #[derive(Component)]
@@ -10,6 +12,7 @@ pub struct Greacher {
     pub name: String,
     pub generated: GreacherParts,
     pub body_type: GreacherBodyType,
+    pub palette: GreacherColorPalette,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -30,7 +33,7 @@ impl Greacher {
     pub const SIZE: f32 = 6.0;
     pub const STILL_EPSILON: f32 = 1.;
 
-    pub fn new(head_texture: &mut Image) -> Greacher {
+    pub fn new(head_texture: &mut Image, palettes: &GreacherPalettes) -> Greacher {
         let generated_flags = GreacherParts::none();
 
         let mut greacher = Greacher {
@@ -38,9 +41,10 @@ impl Greacher {
             name: String::new(),
             generated: generated_flags,
             body_type: GreacherBodyType::Legs,
+            palette: GreacherColorPalette::default()
         };
 
-        greacher.generate(head_texture);
+        greacher.generate(head_texture, palettes);
 
         greacher
     }
@@ -53,20 +57,21 @@ impl Greacher {
         self.generated.contains(category)
     }
 
-    pub fn generate(&mut self, head_texture: &mut Image) {
+    pub fn generate(&mut self, head_texture: &mut Image, palettes: &GreacherPalettes) {
         let mut rng = SmallRng::seed_from_u64(self.seed);
 
         self.name = generate_greacher_name(&mut rng);
-        generate_greacher_head_texture(&mut rng, head_texture);
+        self.palette = palettes.palettes.random(&mut rng).clone();
+        generate_greacher_head_texture(&mut rng, head_texture, &self.palette);
         self.mark_as_generated(GreacherParts::Head);
     }
 
-    pub fn regenerate(&mut self, head_texture: &mut Image) {
+    pub fn regenerate(&mut self, head_texture: &mut Image, palettes: &GreacherPalettes) {
         self.seed = random();
 
         self.generated = GreacherParts::none();
 
-        self.generate(head_texture);
+        self.generate(head_texture, palettes);
     }
 }
 
