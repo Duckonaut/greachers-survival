@@ -13,7 +13,7 @@ use bevy_rapier2d::prelude::*;
 use crate::{
     basics::components::MovementHistory,
     camera::{GameCamera, GameWorldRenderLayer},
-    color::GreacherPalettes,
+    color::{GreacherPalettes, IndexedImageServer},
     states::AppState,
     util::rand_range_f32,
 };
@@ -69,6 +69,7 @@ impl Plugin for GreacherGamePlugin {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    indexed_server: Res<IndexedImageServer>,
     mut images: ResMut<Assets<Image>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     greacher_palettes: Res<GreacherPalettes>,
@@ -79,6 +80,7 @@ fn setup(
         create_new_greacher(
             &mut commands,
             &asset_server,
+            &indexed_server,
             &mut images,
             &mut texture_atlases,
             &greacher_palettes,
@@ -92,6 +94,7 @@ fn setup(
 fn create_new_greacher(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
+    indexed_server: &Res<IndexedImageServer>,
     images: &mut ResMut<Assets<Image>>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     greacher_palettes: &Res<GreacherPalettes>,
@@ -117,7 +120,7 @@ fn create_new_greacher(
             )),
             ..Default::default()
         })
-        .insert(greacher)
+        .insert(greacher.clone())
         .insert(MovementHistory::default())
         .insert(Velocity::default())
         .insert(Collider::ball(5.))
@@ -131,7 +134,7 @@ fn create_new_greacher(
         .insert(game_world_render_layer.0)
         .id();
 
-    let texture_handle = asset_server.load("indexed/legs.png");
+    let texture_handle = indexed_server.get(&asset_server.load("indexed/legs.png"), greacher.palette.0);
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 6.0), 8, 2);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
 

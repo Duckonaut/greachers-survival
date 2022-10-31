@@ -91,7 +91,7 @@ impl GreacherColorPalette {
     const HIGHLIGHT_MAP: Color = Color {
         r: 255,
         g: 255,
-        b: 255,
+        b: 0,
         a: 255,
     };
 
@@ -161,9 +161,9 @@ impl GreacherColorPalette {
         };
 
         GreacherColorPalette {
-            dark: Color::from_raw(&bytes[12..16]),
-            darkish: Color::from_raw(&bytes[12..16]),
-            basic: Color::from_raw(&bytes[12..16]),
+            dark: Color::from_raw(&bytes[0..4]),
+            darkish: Color::from_raw(&bytes[4..8]),
+            basic: Color::from_raw(&bytes[8..12]),
             highlight: Color::from_raw(&bytes[12..16]),
         }
     }
@@ -174,7 +174,7 @@ impl GreacherColorPalette {
             Self::DARKISH_MAP => self.darkish,
             Self::BASIC_MAP => self.basic,
             Self::HIGHLIGHT_MAP => self.highlight,
-            _ => panic!("Bad indexed colors"),
+            _ => color,
         }
     }
 }
@@ -211,13 +211,15 @@ impl GreacherPalettes {
 
         let load_status = asset_server.get_load_state(&palette_source);
 
-        if load_status == LoadState::Loading {
+        if load_status == LoadState::Loading || load_status == LoadState::NotLoaded {
             return;
         } else if load_status == LoadState::Failed {
             panic!("Failed to load palette! Is the assets folder present in the build?");
         }
 
         let palette = images.get(&palette_source).unwrap();
+
+        dbg!(palette);
 
         let data = &palette.data;
         let mut palettes = vec![];
@@ -305,7 +307,7 @@ impl IndexedImageServer {
         state.set(AppState::InGame).unwrap();
     }
 
-    pub fn get(&mut self, source: &Handle<Image>, palette_index: usize) -> Handle<Image> {
+    pub fn get(&self, source: &Handle<Image>, palette_index: usize) -> Handle<Image> {
         if !self.indexed_handles.contains_key(source) {
             panic!("Image not loaded as indexed!")
         }
@@ -326,7 +328,7 @@ impl IndexedImageServer {
 
         let load_status = asset_server.get_load_state(source);
 
-        if load_status == LoadState::Loading {
+        if load_status == LoadState::Loading  || load_status == LoadState::NotLoaded{
             return Err(ImageIndexError::NotLoaded);
         } else if load_status == LoadState::Failed {
             return Err(ImageIndexError::LoadFailure);

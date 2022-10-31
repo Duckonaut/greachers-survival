@@ -1,18 +1,18 @@
 use bevy::prelude::*;
 use bitmask_enum::bitmask;
-use rand::{random, rngs::SmallRng, SeedableRng};
+use rand::{random, rngs::SmallRng, SeedableRng, Rng};
 
 use crate::{color::{GreacherColorPalette, GreacherPalettes}, util::SliceExt};
 
 use super::gen::{generate_greacher_head_texture, generate_greacher_name};
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Greacher {
     pub seed: u64,
     pub name: String,
     pub generated: GreacherParts,
     pub body_type: GreacherBodyType,
-    pub palette: GreacherColorPalette,
+    pub palette: (usize, GreacherColorPalette),
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -41,7 +41,7 @@ impl Greacher {
             name: String::new(),
             generated: generated_flags,
             body_type: GreacherBodyType::Legs,
-            palette: GreacherColorPalette::default()
+            palette: (0, GreacherColorPalette::default())
         };
 
         greacher.generate(head_texture, palettes);
@@ -61,8 +61,9 @@ impl Greacher {
         let mut rng = SmallRng::seed_from_u64(self.seed);
 
         self.name = generate_greacher_name(&mut rng);
-        self.palette = palettes.palettes.random(&mut rng).clone();
-        generate_greacher_head_texture(&mut rng, head_texture, &self.palette);
+        let palette_index = rng.gen_range(0..palettes.palettes.len());
+        self.palette = (palette_index, palettes.palettes[palette_index].clone());
+        generate_greacher_head_texture(&mut rng, head_texture, &self.palette.1);
         self.mark_as_generated(GreacherParts::Head);
     }
 
